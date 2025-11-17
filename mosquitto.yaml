@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mosquitto
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mosquitto-config
+  namespace: mosquitto
+data:
+  mosquitto.conf: |
+    persistence true
+    persistence_location /mosquitto/data/
+    log_dest file /mosquitto/log/mosquitto.log
+    listener 1883
+    # For TLS
+    # listener 8883
+    allow_anonymous false
+    password_file /mosquitto/config/passwd
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mosquitto-pvc
+  namespace: mosquitto
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mosquitto
+  namespace: mosquitto
+  labels:
+    app: mosquitto
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mosquitto
+  template:
+    metadata:
+      labels:
+        app: mosquitto
+    spec:
+      containers:
+      - name: mosquitto
+        image: eclipse-mosquitto:latest
+        ports:
+        - containerPort: 1883
+          name: mqtt
+        volumeMounts:
+        # Mount the config file
+        - name: config-volume
+          mountPath: /mosquitto/config/mosquitto.conf
+          subPath: mosquitto.conf
+        # Mount the password file
+        - name: passwd-volume
+          mountPath: /mosquitto/config/passwd
+          subPath: passwd
+        # Mount the persistent volume for data and logs
+        - name: data-volume
+          mountPath: /mosquitto/
+      volumes:
+      - name: config-volume
+        configMap:
+          name: mosquitto-config
+      - name: passwd-volume
+        secret:
+          secretName: mosquitto-passwd
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: mosquitto-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  finalizers:
+  - service.kubernetes.io/load-balancer-cleanup
+  labels:
+    app: mosquitto
+  name: mosquitto
+  namespace: mosquitto
+spec:
+  ports:
+  - port: 1883
+    protocol: TCP
+    targetPort: 1883
+  selector:
+    app: mosquitto
+  type: LoadBalancer
