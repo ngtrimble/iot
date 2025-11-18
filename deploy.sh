@@ -9,8 +9,10 @@ mosquitto_passwd -c -b passwd iotdev abcd1234
 kubectl delete secret -n mosquitto mosquitto-passwd
 kubectl create secret generic -n mosquitto mosquitto-passwd --from-file=passwd 
 
-# Deploy backend
+# Deploy MQTT Mosquitto
 kubectl apply -f mosquitto.yaml
 
-# Create Test Input
-kubectl apply -f test-publish-job.yaml
+# Deploy InfluxDB
+helm repo add influxdata https://helm.influxdata.com/
+help repo update
+helm upgrade influxdb influxdata/influxdb --install -f influxdb-values.yaml --namespace influxdb --create-namespace
