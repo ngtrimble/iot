@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: influxdb3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: influxdb3-core
+  name: influxdb3-core
+  namespace: influxdb3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: influxdb3-core
+  template:
+    metadata:
+      labels:
+        app: influxdb3-core
+    spec:
+      containers:
+        - name: influxdb3-core
+          image: influxdb:3-core
+          command:
+            - influxdb3
+          args:
+            - serve
+            - --node-id=host01
+            - --object-store=file
+            - --data-dir=/mnt/data
+          volumeMounts:
+            - name: influxdb3-core-data
+              mountPath: /mnt/data
+      volumes:
+        - name: influxdb3-core-data
+          persistentVolumeClaim:
+            claimName: influxdb3-core-data-pvc # Name of your PersistentVolumeClaim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: influxdb3-core-data-pvc
+  namespace: influxdb3
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
